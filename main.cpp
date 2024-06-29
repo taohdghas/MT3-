@@ -1,5 +1,6 @@
 #include <Novice.h>
 #include "Mymath.h"
+#include "imgui.h"
 const char kWindowTitle[] = "LE2C_13_サノ_ハヤテ_タイトル";
 
 struct AABB {
@@ -44,7 +45,34 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 	}
 }
 void DrawAABB(const AABB& aabb, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatirx, uint32_t color) {
+	Vector3 vertices[8] = {
+		{aabb.min.x, aabb.min.y, aabb.min.z},
+		{aabb.max.x, aabb.min.y, aabb.min.z},
+		{aabb.min.x, aabb.max.y, aabb.min.z},
+		{aabb.max.x, aabb.max.y, aabb.min.z}, 
+		{aabb.min.x, aabb.min.y, aabb.max.z},
+		{aabb.max.x, aabb.min.y, aabb.max.z},
+		{aabb.min.x, aabb.max.y, aabb.max.z},
+		{aabb.max.x, aabb.max.y, aabb.max.z}
+	};
+	Vector3 Screen[8];
+	for (int i = 0; i < 8; i++) {
+		Screen[i] = Transform(Transform(vertices[i], viewProjectionMatrix), viewportMatirx);
+	}
 
+
+	Novice::DrawLine(int(Screen[0].x), int(Screen[0].y), int(Screen[1].x), int(Screen[1].y), color);
+	Novice::DrawLine(int(Screen[0].x), int(Screen[0].y), int(Screen[2].x), int(Screen[2].y), color);
+	Novice::DrawLine(int(Screen[0].x), int(Screen[0].y), int(Screen[4].x), int(Screen[4].y), color);
+	Novice::DrawLine(int(Screen[1].x), int(Screen[1].y), int(Screen[3].x), int(Screen[3].y), color);
+	Novice::DrawLine(int(Screen[1].x), int(Screen[1].y), int(Screen[5].x), int(Screen[5].y), color);
+	Novice::DrawLine(int(Screen[2].x), int(Screen[2].y), int(Screen[3].x), int(Screen[3].y), color);
+	Novice::DrawLine(int(Screen[2].x), int(Screen[2].y), int(Screen[6].x), int(Screen[6].y), color);
+	Novice::DrawLine(int(Screen[3].x), int(Screen[3].y), int(Screen[7].x), int(Screen[7].y), color);
+	Novice::DrawLine(int(Screen[4].x), int(Screen[4].y), int(Screen[5].x), int(Screen[5].y), color);
+	Novice::DrawLine(int(Screen[4].x), int(Screen[4].y), int(Screen[6].x), int(Screen[6].y), color);
+	Novice::DrawLine(int(Screen[5].x), int(Screen[5].y), int(Screen[7].x), int(Screen[7].y), color);
+	Novice::DrawLine(int(Screen[6].x), int(Screen[6].y), int(Screen[7].x), int(Screen[7].y), color);
 }
 bool IsCollision(const AABB& aabb1, const AABB& aabb2) {
 	if ((aabb1.min.x <= aabb2.max.x && aabb1.max.x >= aabb2.min.x) && 
@@ -92,24 +120,48 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		memcpy(preKeys, keys, 256);
 		Novice::GetHitKeyStateAll(keys);
 		/// ↓更新処理ここから
-		///
+		ImGui::Begin("window");
+		ImGui::SliderFloat3("CameraTranslate", &cameraTranslate.x,-7.0f,7.0f);
+		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
+		ImGui::SliderFloat3("box1 min", &aabb1.min.x, -3.0f,3.0f);
+		ImGui::SliderFloat3("box1 max", &aabb1.max.x,-3.0f,3.0f);
+		ImGui::SliderFloat3("box2 min", &aabb2.min.x, -3.0f,3.0f);
+		ImGui::SliderFloat3("box2 max", &aabb2.max.x,-3.0f,3.0f);
+		ImGui::End();
+
+		aabb1.min.x = (std::min)(aabb1.min.x, aabb1.max.x);
+		aabb1.max.x = (std::max)(aabb1.min.x, aabb1.max.x);
+		aabb1.min.y = (std::min)(aabb1.min.y, aabb1.max.y);
+		aabb1.max.y = (std::max)(aabb1.min.y, aabb1.max.y);
+		aabb1.min.z = (std::min)(aabb1.min.z, aabb1.max.z);
+		aabb1.max.z = (std::max)(aabb1.min.z, aabb1.max.z);
+
+		aabb2.min.x = (std::min)(aabb2.min.x, aabb2.max.x);
+		aabb2.max.x = (std::max)(aabb2.min.x, aabb2.max.x);
+		aabb2.min.y = (std::min)(aabb2.min.y, aabb2.max.y);
+		aabb2.max.y = (std::max)(aabb2.min.y, aabb2.max.y);
+		aabb2.min.z = (std::min)(aabb2.min.z, aabb2.max.z);
+		aabb2.max.z = (std::max)(aabb2.min.z, aabb2.max.z);
+
+
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
 		Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(windowWidth) / float(windowHeight), 0.1f, 100.0f);
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight), 0.0f, 1.0f);
-		if (IsCollision) {
+		if (IsCollision(aabb1,aabb2)) {
 			color = RED;
 		}
 		else {
-			color = false;
+			color = WHITE;
 		}
 		///
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
-		///
-
+		DrawAABB(aabb1, worldViewProjectionMatrix, viewportMatrix, color);
+		DrawAABB(aabb2, worldViewProjectionMatrix, viewportMatrix, WHITE);
+		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 		///
 		/// ↑描画処理ここまで
 		// フレームの終了
