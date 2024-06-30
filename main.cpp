@@ -1,13 +1,20 @@
 #include <Novice.h>
+#include <algorithm>
 #include "Mymath.h"
 #include "imgui.h"
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 const char kWindowTitle[] = "LE2C_13_サノ_ハヤテ_タイトル";
 
 struct AABB {
 	Vector3 min;//最小点
 	Vector3 max;//最大点
 };
-
+struct Sphere {
+	Vector3 center;
+	float radius;
+};
 void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
 	const float kGridHalfWidth = 2.0f; //Gridの半分の幅
 	const uint32_t kSubdivision = 10;  //分割数
@@ -44,6 +51,39 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 		Novice::DrawLine(int(startScreen.x), int(startScreen.y), int(endScreen.x), int(endScreen.y), unsigned int(color));
 	}
 }
+void DrawSphere(const Sphere& sphere, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+
+	const uint32_t kSubdivision = 10;
+	const float kLonEvery = float(2.0f * M_PI) / kSubdivision;
+	const float kLatEvery = float(M_PI) / kSubdivision;
+
+	for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
+		float lat = float(-M_PI) / 2.0f + kLatEvery * latIndex;
+
+		for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
+			float lon = lonIndex * kLonEvery;
+			Vector3 a, b, c;
+
+			a = { sphere.center.x + sphere.radius * std::cos(lat) * std::cos(lon), sphere.center.y + sphere.radius * std::sin(lat), sphere.center.z + sphere.radius * std::cos(lat) * std::sin(lon) };
+			b = { sphere.center.x + sphere.radius * std::cos(lat + kLatEvery) * std::cos(lon), sphere.center.y + sphere.radius * std::sin(lat + kLatEvery), sphere.center.z + sphere.radius * std::cos(lat + kLatEvery) * std::sin(lon) };
+			c = { sphere.center.x + sphere.radius * std::cos(lat) * std::cos(lon + kLonEvery), sphere.center.y + sphere.radius * std::sin(lat), sphere.center.z + sphere.radius * std::cos(lat) * std::sin(lon + kLonEvery) };
+
+			a = Transform(a, viewProjectionMatrix);
+			a = Transform(a, viewportMatrix);
+
+			b = Transform(b, viewProjectionMatrix);
+			b = Transform(b, viewportMatrix);
+
+			c = Transform(c, viewProjectionMatrix);
+			c = Transform(c, viewportMatrix);
+
+			Novice::DrawLine(int(a.x), int(a.y), int(b.x), int(b.y), color);
+			Novice::DrawLine(int(a.x), int(a.y), int(c.x), int(c.y), color);
+
+		}
+	}
+
+}
 void DrawAABB(const AABB& aabb, const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatirx, uint32_t color) {
 	Vector3 vertices[8] = {
 		{aabb.min.x, aabb.min.y, aabb.min.z},
@@ -74,15 +114,13 @@ void DrawAABB(const AABB& aabb, const Matrix4x4& viewProjectionMatrix, const Mat
 	Novice::DrawLine(int(Screen[5].x), int(Screen[5].y), int(Screen[7].x), int(Screen[7].y), color);
 	Novice::DrawLine(int(Screen[6].x), int(Screen[6].y), int(Screen[7].x), int(Screen[7].y), color);
 }
-bool IsCollision(const AABB& aabb1, const AABB& aabb2) {
-	if ((aabb1.min.x <= aabb2.max.x && aabb1.max.x >= aabb2.min.x) && 
-		(aabb1.min.y <= aabb2.max.y && aabb1.max.y >= aabb2.min.y) &&
-		(aabb1.min.z <= aabb2.max.z && aabb1.max.z >= aabb2.min.z)) {
-		return true;
-	}
-	else {
-		return false;
-	}
+bool IsCollision(const AABB& aabb,const Sphere&sphere) {
+	//最近接点を求める
+	Vector3 closestPoint{ std::clamp(sphere.center.x,aabb.min.x,aabb.max.x),
+    std::clamp(sphere.center.y,aabb.min.y,aabb.max.y),
+	std::clamp(sphere.center.z,aabb.min.z,aabb.max.z) };
+	//最近接点と弾の中心との距離を求める
+	float distance = Length();
 }
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -97,10 +135,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		.max{0.0f,0.0f,0.0f},
 	};
 
-	AABB aabb2{
-		.min{0.2f,0.2f,0.2f},
-		.max{1.0f,1.0f,1.0f},
-	};
 
 	Vector3 cameraTranslate(0.0f, 1.9f, -6.49f);
 	Vector3 cameraRotate(0.26f, 0.0f, 0.0f);
@@ -125,8 +159,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
 		ImGui::SliderFloat3("box1 min", &aabb1.min.x, -3.0f,3.0f);
 		ImGui::SliderFloat3("box1 max", &aabb1.max.x,-3.0f,3.0f);
-		ImGui::SliderFloat3("box2 min", &aabb2.min.x, -3.0f,3.0f);
-		ImGui::SliderFloat3("box2 max", &aabb2.max.x,-3.0f,3.0f);
 		ImGui::End();
 
 		aabb1.min.x = (std::min)(aabb1.min.x, aabb1.max.x);
@@ -136,13 +168,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		aabb1.min.z = (std::min)(aabb1.min.z, aabb1.max.z);
 		aabb1.max.z = (std::max)(aabb1.min.z, aabb1.max.z);
 
-		aabb2.min.x = (std::min)(aabb2.min.x, aabb2.max.x);
-		aabb2.max.x = (std::max)(aabb2.min.x, aabb2.max.x);
-		aabb2.min.y = (std::min)(aabb2.min.y, aabb2.max.y);
-		aabb2.max.y = (std::max)(aabb2.min.y, aabb2.max.y);
-		aabb2.min.z = (std::min)(aabb2.min.z, aabb2.max.z);
-		aabb2.max.z = (std::max)(aabb2.min.z, aabb2.max.z);
-
 
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
@@ -150,17 +175,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(windowWidth) / float(windowHeight), 0.1f, 100.0f);
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight), 0.0f, 1.0f);
-		if (IsCollision(aabb1,aabb2)) {
-			color = RED;
-		}
-		else {
-			color = WHITE;
-		}
+	
 		///
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
 		DrawAABB(aabb1, worldViewProjectionMatrix, viewportMatrix, color);
-		DrawAABB(aabb2, worldViewProjectionMatrix, viewportMatrix, WHITE);
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 		///
 		/// ↑描画処理ここまで
