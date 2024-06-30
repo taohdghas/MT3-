@@ -120,7 +120,14 @@ bool IsCollision(const AABB& aabb,const Sphere&sphere) {
     std::clamp(sphere.center.y,aabb.min.y,aabb.max.y),
 	std::clamp(sphere.center.z,aabb.min.z,aabb.max.z) };
 	//最近接点と弾の中心との距離を求める
-	float distance = Length();
+	float distance = Length(Subtract(closestPoint,sphere.center));
+	//距離が半径よりも小さければ衝突
+	if (distance <= sphere.radius) {
+		return true;
+	}
+	else {
+		return false;
+	}
 }
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -130,12 +137,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	float windowWidth = 1280.0f;
 	float windowHeight = 720.0f;
 
-	AABB aabb1{
+	AABB aabb{
 		.min{-0.5f,-0.5f,-0.5f},
 		.max{0.0f,0.0f,0.0f},
 	};
-
-
+	Sphere sphere = { { 1.0f,1.0f,1.0f },1.0f };
 	Vector3 cameraTranslate(0.0f, 1.9f, -6.49f);
 	Vector3 cameraRotate(0.26f, 0.0f, 0.0f);
 	Vector3 cameraScale(1.0f, 1.0f, 1.0f);
@@ -157,16 +163,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::Begin("window");
 		ImGui::SliderFloat3("CameraTranslate", &cameraTranslate.x,-7.0f,7.0f);
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
-		ImGui::SliderFloat3("box1 min", &aabb1.min.x, -3.0f,3.0f);
-		ImGui::SliderFloat3("box1 max", &aabb1.max.x,-3.0f,3.0f);
+		ImGui::SliderFloat3("box1 min", &aabb.min.x, -3.0f,3.0f);
+		ImGui::SliderFloat3("box1 max", &aabb.max.x,-3.0f,3.0f);
+		ImGui::SliderFloat3("sphere center", &sphere.center.x, -3.0f, 3.0f);
+		ImGui::SliderFloat3("sphere radius", &sphere.radius, -3.0f, 3.0f);
 		ImGui::End();
 
-		aabb1.min.x = (std::min)(aabb1.min.x, aabb1.max.x);
-		aabb1.max.x = (std::max)(aabb1.min.x, aabb1.max.x);
-		aabb1.min.y = (std::min)(aabb1.min.y, aabb1.max.y);
-		aabb1.max.y = (std::max)(aabb1.min.y, aabb1.max.y);
-		aabb1.min.z = (std::min)(aabb1.min.z, aabb1.max.z);
-		aabb1.max.z = (std::max)(aabb1.min.z, aabb1.max.z);
+		aabb.min.x = (std::min)(aabb.min.x, aabb.max.x);
+		aabb.max.x = (std::max)(aabb.min.x, aabb.max.x);
+		aabb.min.y = (std::min)(aabb.min.y, aabb.max.y);
+		aabb.max.y = (std::max)(aabb.min.y, aabb.max.y);
+		aabb.min.z = (std::min)(aabb.min.z, aabb.max.z);
+		aabb.max.z = (std::max)(aabb.min.z, aabb.max.z);
 
 
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
@@ -176,10 +184,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight), 0.0f, 1.0f);
 	
+		if (IsCollision(aabb, sphere)) {
+			color = RED;
+		}
+		else {
+			color = WHITE;
+		}
 		///
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
-		DrawAABB(aabb1, worldViewProjectionMatrix, viewportMatrix, color);
+		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, WHITE);
+		DrawAABB(aabb, worldViewProjectionMatrix, viewportMatrix, color);
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 		///
 		/// ↑描画処理ここまで
