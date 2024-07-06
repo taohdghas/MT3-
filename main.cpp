@@ -83,12 +83,26 @@ void DrawAABB(const AABB& aabb, const Matrix4x4& viewProjectionMatrix, const Mat
 }
 bool IsCollision(const AABB& aabb, const Segment& segment) {
 
+	float tNearX = (aabb.min.x - segment.origin.x) / segment.diff.x;
+	float tNearY = (aabb.min.y - segment.origin.y) / segment.diff.y;
+	float tNearZ = (aabb.min.z - segment.origin.z) / segment.diff.z;
+	float tFarX = (aabb.max.x - segment.origin.x) / segment.diff.x;
+	float tFarY = (aabb.max.y - segment.origin.y) / segment.diff.y;
+	float tFarZ = (aabb.max.z - segment.origin.z) / segment.diff.z;
+
+	if (tNearX > tFarX) std::swap(tNearX, tFarX);
+	if (tNearY > tFarY) std::swap(tNearY, tFarY);
+	if (tNearZ > tFarZ) std::swap(tNearZ, tFarZ);
+
 	//AABBの衝突点(貫通点)のtが小さい方
 	float tmin = max(max(tNearX, tNearY), tNearZ);
 	//AABBとの衝突点(貫通点)のtが大きい方
 	float tmax = min(min(tFarX, tFarY), tFarZ);
-	if (tmin <= tmax) {
+	if (tmin <= tmax && tmax >= 0.0f && tmin <= 1.0f) {
 		return true;
+	}
+	else {
+		return false;
 	}
 }
 // Windowsアプリでのエントリーポイント(main関数)
@@ -132,6 +146,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
 		ImGui::SliderFloat3("box1 min", &aabb.min.x, -3.0f,3.0f);
 		ImGui::SliderFloat3("box1 max", &aabb.max.x,-3.0f,3.0f);
+		ImGui::SliderFloat3("Segment origin", &segment.origin.x, -3.0f, 3.0f);
+		ImGui::SliderFloat3("Segment diff", &segment.diff.x, -3.0f, 3.0f);
 		ImGui::End();
 
 		aabb.min.x = (std::min)(aabb.min.x, aabb.max.x);
@@ -145,15 +161,26 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
+		Matrix4x4 worldviewMatrix = Inverse(worldMatrix);
 		Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(windowWidth) / float(windowHeight), 0.1f, 100.0f);
-		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
+		Matrix4x4 worldViewProjectionMatrix = Multiply(worldviewMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight), 0.0f, 1.0f);
 	
-		///
+		Vector3 start = Transform(Transform(segment.origin, worldViewProjectionMatrix), viewportMatrix);
+		Vector3 end = Transform(Transform(Add(segment.origin, segment.diff), worldViewProjectionMatrix), viewportMatrix);
+
+		if (IsCollision(aabb, segment)) {
+			color = RED;
+		}
+		else
+		{
+			color = WHITE;
+		}
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
 		DrawAABB(aabb, worldViewProjectionMatrix, viewportMatrix, color);
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
+		Novice::DrawLine((int)start.x, (int)start.y, (int)end.x, (int)end.y,WHITE);
 		///
 		/// ↑描画処理ここまで
 		// フレームの終了
