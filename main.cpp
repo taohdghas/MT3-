@@ -131,11 +131,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	float windowWidth = 1280.0f;
 	float windowHeight = 720.0f;
 
-	Vector3 controlPoint[3] = {
-		{-0.8f,0.58f,1.0f},
-		{1.76f,1.0f,-0.3f},
-		{0.94f,-0.7f,2.3f},
-	};
+	Vector3 translates[3] = { {0.2f,1.0f,0.0f},{0.4f,0.0f,0.0f},{0.3f,0.0f,0.0f}, };
+	Vector3 rotates[3] = { {0.0f,0.0f,-6.8f},{0.0f,0.0f,-1.4f},{0.0f,0.0f,0.0f}, };
+	Vector3 scales[3] = { {1.0f,1.0f,1.0f},{1.0f,1.0f,1.0f},{1.0f,1.0f,1.0f}, };
 
 	Vector3 cameraTranslate(0.0f, 1.9f, -6.49f);
 	Vector3 cameraRotate(0.26f, 0.0f, 0.0f);
@@ -159,20 +157,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::Begin("window");
 		ImGui::SliderFloat3("CameraTranslate", &cameraTranslate.x,-7.0f,7.0f);
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
-		ImGui::DragFloat3("controlPoint[0]", &controlPoint[0].x, 0.01f);
-		ImGui::DragFloat3("controlPoint[1]", &controlPoint[1].x, 0.01f);
-		ImGui::DragFloat3("controlPoint[2]", &controlPoint[2].x, 0.01f);
+		ImGui::DragFloat3("translates[0]", &translates[0].x, 0.01f);
+		ImGui::DragFloat3("rotates[0]", &rotates[0].x, 0.01f);
+		ImGui::DragFloat3("scales[0]", &scales[0].x, 0.01f);
+		ImGui::DragFloat3("translates[1]", &translates[1].x, 0.01f);
+		ImGui::DragFloat3("rotates[1]", &rotates[1].x, 0.01f);
+		ImGui::DragFloat3("scales[1]", &scales[1].x, 0.01f);
+		ImGui::DragFloat3("translates[2]", &translates[2].x, 0.01f);
+		ImGui::DragFloat3("rotates[2]", &rotates[2].x, 0.01f);
+		ImGui::DragFloat3("scales[2]", &scales[2].x, 0.01f);
 		ImGui::End();
-
-		Sphere sphere{
-		controlPoint[0],0.01f
-		};
-		Sphere sphere1{
-			controlPoint[1],0.01f
-		};
-		Sphere sphere2{
-			controlPoint[2],0.01f
-		};
 
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
@@ -181,14 +175,25 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight), 0.0f, 1.0f);
 	
-		///
+		Matrix4x4 WorldShoulder = MakeAffineMatrix(scales[0], rotates[0], translates[0]);
+		Matrix4x4 WorldElbow = Multiply(MakeAffineMatrix(scales[1], rotates[1], translates[1]),WorldShoulder);
+		Matrix4x4 WorldHand = Multiply(MakeAffineMatrix(scales[2], rotates[2], translates[2]), WorldElbow);
+		
+		Sphere Shoulder{ {WorldShoulder.m[3][0],WorldShoulder.m[3][1],WorldShoulder.m[3][2]},0.05f };
+		Sphere Elbow = { {WorldElbow.m[3][0],WorldElbow.m[3][1],WorldElbow.m[3][2]},0.05f };
+		Sphere Hand = { {WorldHand.m[3][0],WorldHand.m[3][1],WorldHand.m[3][2]},0.05f };
+
+		Vector3 ScreenShoulder = Transform(Transform(Shoulder.center, worldViewProjectionMatrix), viewportMatrix);
+		Vector3 ScreenElbow = Transform(Transform(Elbow.center, worldViewProjectionMatrix), viewportMatrix);
+		Vector3 ScreenHand = Transform(Transform(Hand.center, worldViewProjectionMatrix), viewportMatrix);
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
-		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix,BLACK);
-		DrawSphere(sphere1, worldViewProjectionMatrix, viewportMatrix,BLACK);
-		DrawSphere(sphere2, worldViewProjectionMatrix, viewportMatrix,BLACK);
-		DrawBezier(controlPoint[0], controlPoint[1], controlPoint[2], worldViewProjectionMatrix, viewportMatrix, BLUE);
+		DrawSphere(Shoulder, worldViewProjectionMatrix, viewportMatrix, RED);
+		DrawSphere(Elbow, worldViewProjectionMatrix, viewportMatrix, GREEN);
+		DrawSphere(Hand, worldViewProjectionMatrix, viewportMatrix,BLUE);
+		Novice::DrawLine(int(ScreenShoulder.x), int(ScreenShoulder.y), int(ScreenElbow.x), int(ScreenElbow.y), WHITE);
+		Novice::DrawLine(int(ScreenElbow.x), int(ScreenElbow.y), int(ScreenHand.x), int(ScreenHand.y), WHITE);
 		///
 		/// ↑描画処理ここまで
 		// フレームの終了
