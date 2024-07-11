@@ -7,14 +7,82 @@
 #endif
 const char kWindowTitle[] = "LE2C_13_サノ_ハヤテ_タイトル";
 
+struct Sphere {
+	Vector3 center;
+	float radius;
+};
 //線形補間
 Vector3 Lerp(const Vector3& v1, const Vector3& v2, float t) {
-
+	return v1* (1 - t) + v2 * t;
 }
-
+Vector3 Bezier(const Vector3& p0, const Vector3& p1, const Vector3& p2, float t) {
+	//制御点p0,p1を線形補間
+	Vector3 p0p1 = Lerp(p0, p1, t);
+	//制御点p1,p2を線形補間
+	Vector3 p1p2 = Lerp(p1, p2, t);
+	//制御点p0,p1,p1p2をさらに線形補間
+	Vector3 p = Lerp(p0p1, p1p2, t);
+	return p;
+}
 void DrawBezier(const Vector3& controlPoint0, const Vector3& controlPoint1, const Vector3& controlPoint2,
 	const Matrix4x4&viewProjectionMatrix,const Matrix4x4&viewportMatrix,uint32_t color) {
+	for (int index = 0; index < 32; index++) {
+		float t0 = index / 32.0f;
+		float t1 = (index + 1) / 32.0f;
 
+		Vector3 bezier0 = Bezier(controlPoint0, controlPoint1, controlPoint2, t0);
+		Vector3 bezier1 = Bezier(controlPoint0, controlPoint1, controlPoint2, t1);
+
+		Vector3 Screenbezier0 = Transform(Transform(bezier0, viewProjectionMatrix), viewportMatrix);
+		Vector3 Screenbezier1 = Transform(Transform(bezier1, viewProjectionMatrix), viewportMatrix);
+		Vector3 ScreenPoint0 = Transform(Transform(controlPoint0, viewProjectionMatrix), viewportMatrix);
+		Vector3 ScreenPoint1 = Transform(Transform(controlPoint1, viewProjectionMatrix), viewportMatrix);
+		Vector3 ScreenPoint2 = Transform(Transform(controlPoint2, viewProjectionMatrix), viewportMatrix);
+
+		Novice::DrawLine(int(Screenbezier0.x), int(Screenbezier0.y), int(Screenbezier1.x), int(Screenbezier1.y), color);
+	}
+}
+
+void DrawSphere(const Sphere& sphere, const Matrix4x4& ViewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
+	const float pi = 3.14159f;
+	const uint32_t kSubdivision = 20;//分割数
+	const float kLonEvery = 2.0f * pi / kSubdivision;//経度分割1つ分の角度
+	const float kLatEvery = pi / kSubdivision;//緯度分割1つ分の角度
+	//緯度の方向に分割-π/2 ～ π/2
+	for (uint32_t latIndex = 0; latIndex < kSubdivision; ++latIndex) {
+		float lat = -pi / 2.0f + kLatEvery * latIndex;//現在の緯度
+		//経度の方向に分割 θ ～ 2π
+		for (uint32_t lonIndex = 0; lonIndex < kSubdivision; ++lonIndex) {
+			float lon = lonIndex * kLonEvery;//現在の経度
+			//world座標系でのa,b,cを求める
+			Vector3 a = {
+			sphere.center.x + sphere.radius * cosf(lat) * cosf(lon),
+			sphere.center.y + sphere.radius * sin(lat),
+			sphere.center.z + sphere.radius * cos(lat) * sin(lon)
+			};
+			Vector3 b = {
+				sphere.center.x + sphere.radius * cos(lat) * cos(lon + kLonEvery),
+				sphere.center.y + sphere.radius * sin(lat),
+				sphere.center.z + sphere.radius * cos(lat) * sin(lon + kLonEvery)
+			};
+			Vector3 c = {
+				sphere.center.x + sphere.radius * cos(lat + kLatEvery) * cos(lon),
+				sphere.center.y + sphere.radius * sin(lat + kLatEvery),
+				sphere.center.z + sphere.radius * cos(lat + kLatEvery) * sin(lon)
+			};
+			//a,b,cをScreen座標系まで変換
+			Vector3 a_transformed = Transform(a, ViewProjectionMatrix);
+			Vector3 b_transformed = Transform(b, ViewProjectionMatrix);
+			Vector3 c_transformed = Transform(c, ViewProjectionMatrix);
+
+			Vector3 a_screen = Transform(a_transformed, viewportMatrix);
+			Vector3 b_screen = Transform(b_transformed, viewportMatrix);
+			Vector3 c_screen = Transform(c_transformed, viewportMatrix);
+			//ab,bcで線を引く
+			Novice::DrawLine(int(a_screen.x), int(a_screen.y), int(b_screen.x), int(b_screen.y), color);
+			Novice::DrawLine(int(a_screen.x), int(a_screen.y), int(c_screen.x), int(c_screen.y), color);
+		}
+	}
 }
 
 void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix) {
@@ -41,8 +109,9 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 		float z = -kGridHalfWidth + (zIndex * kGridEvery);
 		float color = float(0xAAAAAAFF);
 
-		Vector3 start{ z,0.0f,-kGridHalfWidth };
-		Vector3 end{ z,0.0f,kGridHalfWidth };
+		Vector3 start{ kGridHalfWidth, 0.0f, z };
+		Vector3 end{ -kGridHalfWidth, 0.0f, z };
+
 
 		Vector3 startScreen = Transform(Transform(start, viewProjectionMatrix), viewportMatrix);
 		Vector3 endScreen = Transform(Transform(end, viewProjectionMatrix), viewportMatrix);
@@ -90,8 +159,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::Begin("window");
 		ImGui::SliderFloat3("CameraTranslate", &cameraTranslate.x,-7.0f,7.0f);
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
+		ImGui::DragFloat3("controlPoint[0]", &controlPoint[0].x, 0.01f);
+		ImGui::DragFloat3("controlPoint[1]", &controlPoint[1].x, 0.01f);
+		ImGui::DragFloat3("controlPoint[2]", &controlPoint[2].x, 0.01f);
 		ImGui::End();
 
+		Sphere sphere{
+		controlPoint[0],0.01f
+		};
+		Sphere sphere1{
+			controlPoint[1],0.01f
+		};
+		Sphere sphere2{
+			controlPoint[2],0.01f
+		};
 
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
@@ -104,6 +185,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
+		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix,BLACK);
+		DrawSphere(sphere1, worldViewProjectionMatrix, viewportMatrix,BLACK);
+		DrawSphere(sphere2, worldViewProjectionMatrix, viewportMatrix,BLACK);
+		DrawBezier(controlPoint[0], controlPoint[1], controlPoint[2], worldViewProjectionMatrix, viewportMatrix, BLUE);
 		///
 		/// ↑描画処理ここまで
 		// フレームの終了
