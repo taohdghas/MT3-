@@ -11,21 +11,7 @@ struct Sphere {
 	Vector3 center;
 	float radius;
 };
-struct Spring {
-	//アンカー。固定された端の位置
-	Vector3 anchor;
-	float naturalLength;//自然長
-	float stiffness;//耐性。バネ定数k
-	float dampingCoefficient;//減衰係数
-};
-struct Ball {
-	Vector3 position;//ボールの位置
-	Vector3 velocity;//ボールの速度
-	Vector3 acceleration;//ボールの加速度
-	float mass;//ボールの質量
-	float radius;//ボールの半径
-	unsigned int color;//ボールの色
-};
+
 //線形補間
 Vector3 Lerp(const Vector3& v1, const Vector3& v2, float t) {
 	return v1* (1 - t) + v2 * t;
@@ -147,18 +133,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	float windowHeight = 720.0f;
 
 	float deltaTime = 1.0f / 60.0f;
-
-	Spring spring{};
-	spring.anchor = { 0.0f,0.0f,0.0f };
-	spring.naturalLength = 1.0f;
-	spring.stiffness = 100.0f;
-	spring.dampingCoefficient = 2.0f;
-
-	Ball ball{};
-	ball.position = { 1.2f,0.0f,0.0f };
-	ball.mass = 2.0f;
-	ball.radius = 0.05f;
-	ball.color = BLUE;
+	float angularVelocity = 3.14f;
+	flaot angle = 0.0f;
 
 	Vector3 cameraTranslate(0.0f, 1.9f, -6.49f);
 	Vector3 cameraRotate(0.26f, 0.0f, 0.0f);
@@ -182,23 +158,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat3("CameraTranslate", &cameraTranslate.x,-7.0f,7.0f);
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
 		ImGui::End();
-
-		Vector3 diff = ball.position - spring.anchor;
-		float length = Length(diff);
-		if (length != -0.0f) {
-			Vector3 direction = Normalize(diff);
-			Vector3 restPosition = spring.anchor + direction * spring.naturalLength;
-			Vector3 displacement = length * (ball.position - restPosition);
-			Vector3 restoringForce = -spring.stiffness * displacement;
-			//減衰抵抗
-			Vector3 dampingForce = -spring.dampingCoefficient * ball.velocity;
-			Vector3 force = restoringForce * dampingForce;
-			ball.acceleration = force / ball.mass;
-		}
-		//加速度も速度もどちらも秒を基準とした値
-		//deltaTime適用
-		ball.velocity += ball.acceleration * deltaTime;
-		ball.position += ball.velocity * deltaTime;
 
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
