@@ -11,6 +11,21 @@ struct Sphere {
 	Vector3 center;
 	float radius;
 };
+struct Spring {
+	//アンカー。固定された端の位置
+	Vector3 anchor;
+	float naturalLength;//自然長
+	float stiffness;//耐性。バネ定数k
+	float dampingCoefficient;//減衰係数
+};
+struct Ball {
+	Vector3 position;//ボールの位置
+	Vector3 velocity;//ボールの速度
+	Vector3 acceleration;//ボールの加速度
+	float mass;//ボールの質量
+	float radius;//ボールの半径
+	unsigned int color;//ボールの色
+};
 //線形補間
 Vector3 Lerp(const Vector3& v1, const Vector3& v2, float t) {
 	return v1* (1 - t) + v2 * t;
@@ -131,9 +146,19 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	float windowWidth = 1280.0f;
 	float windowHeight = 720.0f;
 
-	Vector3 translates[3] = { {0.2f,1.0f,0.0f},{0.4f,0.0f,0.0f},{0.3f,0.0f,0.0f}, };
-	Vector3 rotates[3] = { {0.0f,0.0f,-6.8f},{0.0f,0.0f,-1.4f},{0.0f,0.0f,0.0f}, };
-	Vector3 scales[3] = { {1.0f,1.0f,1.0f},{1.0f,1.0f,1.0f},{1.0f,1.0f,1.0f}, };
+	float deltaTime = 1.0f / 60.0f;
+
+	Spring spring{};
+	spring.anchor = { 0.0f,0.0f,0.0f };
+	spring.naturalLength = 1.0f;
+	spring.stiffness = 100.0f;
+	spring.dampingCoefficient = 2.0f;
+
+	Ball ball{};
+	ball.position = { 1.2f,0.0f,0.0f };
+	ball.mass = 2.0f;
+	ball.radius = 0.05f;
+	ball.color = BLUE;
 
 	Vector3 cameraTranslate(0.0f, 1.9f, -6.49f);
 	Vector3 cameraRotate(0.26f, 0.0f, 0.0f);
@@ -149,7 +174,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		// フレームの開始
 		Novice::BeginFrame();
 
-
 		// キー入力を受け取る
 		memcpy(preKeys, keys, 256);
 		Novice::GetHitKeyStateAll(keys);
@@ -157,16 +181,24 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::Begin("window");
 		ImGui::SliderFloat3("CameraTranslate", &cameraTranslate.x,-7.0f,7.0f);
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
-		ImGui::DragFloat3("translates[0]", &translates[0].x, 0.01f);
-		ImGui::DragFloat3("rotates[0]", &rotates[0].x, 0.01f);
-		ImGui::DragFloat3("scales[0]", &scales[0].x, 0.01f);
-		ImGui::DragFloat3("translates[1]", &translates[1].x, 0.01f);
-		ImGui::DragFloat3("rotates[1]", &rotates[1].x, 0.01f);
-		ImGui::DragFloat3("scales[1]", &scales[1].x, 0.01f);
-		ImGui::DragFloat3("translates[2]", &translates[2].x, 0.01f);
-		ImGui::DragFloat3("rotates[2]", &rotates[2].x, 0.01f);
-		ImGui::DragFloat3("scales[2]", &scales[2].x, 0.01f);
 		ImGui::End();
+
+		Vector3 diff = ball.position - spring.anchor;
+		float length = Length(diff);
+		if (length != -0.0f) {
+			Vector3 direction = Normalize(diff);
+			Vector3 restPosition = spring.anchor + direction * spring.naturalLength;
+			Vector3 displacement = length * (ball.position - restPosition);
+			Vector3 restoringForce = -spring.stiffness * displacement;
+			//減衰抵抗
+			Vector3 dampingForce = -spring.dampingCoefficient * ball.velocity;
+			Vector3 force = restoringForce * dampingForce;
+			ball.acceleration = force / ball.mass;
+		}
+		//加速度も速度もどちらも秒を基準とした値
+		//deltaTime適用
+		ball.velocity += ball.acceleration * deltaTime;
+		ball.position += ball.velocity * deltaTime;
 
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
@@ -175,26 +207,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight), 0.0f, 1.0f);
 	
-		Matrix4x4 WorldShoulder = MakeAffineMatrix(scales[0], rotates[0], translates[0]);
-		Matrix4x4 WorldElbow = Multiply(MakeAffineMatrix(scales[1], rotates[1], translates[1]),WorldShoulder);
-		Matrix4x4 WorldHand = Multiply(MakeAffineMatrix(scales[2], rotates[2], translates[2]), WorldElbow);
-		
-		Sphere Shoulder{ {WorldShoulder.m[3][0],WorldShoulder.m[3][1],WorldShoulder.m[3][2]},0.05f };
-		Sphere Elbow = { {WorldElbow.m[3][0],WorldElbow.m[3][1],WorldElbow.m[3][2]},0.05f };
-		Sphere Hand = { {WorldHand.m[3][0],WorldHand.m[3][1],WorldHand.m[3][2]},0.05f };
-
-		Vector3 ScreenShoulder = Transform(Transform(Shoulder.center, worldViewProjectionMatrix), viewportMatrix);
-		Vector3 ScreenElbow = Transform(Transform(Elbow.center, worldViewProjectionMatrix), viewportMatrix);
-		Vector3 ScreenHand = Transform(Transform(Hand.center, worldViewProjectionMatrix), viewportMatrix);
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
-		DrawSphere(Shoulder, worldViewProjectionMatrix, viewportMatrix, RED);
-		DrawSphere(Elbow, worldViewProjectionMatrix, viewportMatrix, GREEN);
-		DrawSphere(Hand, worldViewProjectionMatrix, viewportMatrix,BLUE);
-		Novice::DrawLine(int(ScreenShoulder.x), int(ScreenShoulder.y), int(ScreenElbow.x), int(ScreenElbow.y), WHITE);
-		Novice::DrawLine(int(ScreenElbow.x), int(ScreenElbow.y), int(ScreenHand.x), int(ScreenHand.y), WHITE);
-		///
+
 		/// ↑描画処理ここまで
 		// フレームの終了
 		Novice::EndFrame();
