@@ -1,6 +1,7 @@
 #include <Novice.h>
 #include <algorithm>
 #include "Mymath.h"
+#include "Vector3.h"
 #include "imgui.h"
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -137,8 +138,6 @@ void DrawGrid(const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMa
 		Novice::DrawLine(int(startScreen.x), int(startScreen.y), int(endScreen.x), int(endScreen.y), unsigned int(color));
 	}
 }
-
-
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// ライブラリの初期化
@@ -147,6 +146,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	float windowHeight = 720.0f;
 
 	float deltaTime = 1.0f / 60.0f;
+
+	bool IsStart = false;
 
 	Spring spring{};
 	spring.anchor = { 0.0f,0.0f,0.0f };
@@ -159,6 +160,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	ball.mass = 2.0f;
 	ball.radius = 0.05f;
 	ball.color = BLUE;
+
+	Sphere sphere{
+		ball.position,
+		ball.radius,
+	};
 
 	Vector3 cameraTranslate(0.0f, 1.9f, -6.49f);
 	Vector3 cameraRotate(0.26f, 0.0f, 0.0f);
@@ -183,23 +189,29 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
 		ImGui::End();
 
-		Vector3 diff = ball.position - spring.anchor;
-		float length = Length(diff);
-		if (length != -0.0f) {
-			Vector3 direction = Normalize(diff);
-			Vector3 restPosition = spring.anchor + direction * spring.naturalLength;
-			Vector3 displacement = length * (ball.position - restPosition);
-			Vector3 restoringForce = -spring.stiffness * displacement;
-			//減衰抵抗
-			Vector3 dampingForce = -spring.dampingCoefficient * ball.velocity;
-			Vector3 force = restoringForce * dampingForce;
-			ball.acceleration = force / ball.mass;
+		if (keys[DIK_SPACE]) {
+			IsStart = true;
 		}
-		//加速度も速度もどちらも秒を基準とした値
-		//deltaTime適用
-		ball.velocity += ball.acceleration * deltaTime;
-		ball.position += ball.velocity * deltaTime;
-
+	
+		if (IsStart) {
+			Vector3 diff = ball.position - spring.anchor;
+			float length = Length(diff);
+			if (length != -0.0f) {
+				Vector3 direction = Normalize(diff);
+				Vector3 restPosition = spring.anchor + direction * spring.naturalLength;
+				Vector3 displacement = length * (ball.position - restPosition);
+				Vector3 restoringForce = -spring.stiffness * displacement;
+				//減衰抵抗
+				Vector3 dampingForce = -spring.dampingCoefficient * ball.velocity;
+				Vector3 force = restoringForce + dampingForce;
+				ball.acceleration = force / ball.mass;
+			}
+			//加速度も速度もどちらも秒を基準とした値
+			//deltaTime適用
+			ball.velocity += ball.acceleration * deltaTime;
+			ball.position += ball.velocity * deltaTime;
+		}
+		sphere.center = ball.position;
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -207,10 +219,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight), 0.0f, 1.0f);
 	
+		Vector3 ScreenAnchor = Transform(Transform(spring.anchor, worldViewProjectionMatrix), viewportMatrix);
+		Vector3 ScreenCenter = Transform(Transform(sphere.center, worldViewProjectionMatrix), viewportMatrix);
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
-
+		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, ball.color);
+		Novice::DrawLine(int(ScreenAnchor.x), int(ScreenAnchor.y), int(ScreenCenter.x), int(ScreenCenter.y), 0xFFFFFFFF);
 		/// ↑描画処理ここまで
 		// フレームの終了
 		Novice::EndFrame();
