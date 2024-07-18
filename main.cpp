@@ -14,7 +14,7 @@ struct Sphere {
 
 //線形補間
 Vector3 Lerp(const Vector3& v1, const Vector3& v2, float t) {
-	return v1* (1 - t) + v2 * t;
+	return v1 * (1 - t) + v2 * t;
 }
 Vector3 Bezier(const Vector3& p0, const Vector3& p1, const Vector3& p2, float t) {
 	//制御点p0,p1を線形補間
@@ -26,7 +26,7 @@ Vector3 Bezier(const Vector3& p0, const Vector3& p1, const Vector3& p2, float t)
 	return p;
 }
 void DrawBezier(const Vector3& controlPoint0, const Vector3& controlPoint1, const Vector3& controlPoint2,
-	const Matrix4x4&viewProjectionMatrix,const Matrix4x4&viewportMatrix,uint32_t color) {
+	const Matrix4x4& viewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
 	for (int index = 0; index < 32; index++) {
 		float t0 = index / 32.0f;
 		float t1 = (index + 1) / 32.0f;
@@ -134,7 +134,17 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	float deltaTime = 1.0f / 60.0f;
 	float angularVelocity = 3.14f;
-	flaot angle = 0.0f;
+	float angle = 0.0f;
+	float r = 0.8f;
+
+	bool IsStart = false;
+
+	Vector3 p = { 0.0f,0.0f,0.0f };
+	Vector3 c = { 0.0f,0.0f,0.0f };
+
+	Sphere sphere{
+		p,0.05f
+	};
 
 	Vector3 cameraTranslate(0.0f, 1.9f, -6.49f);
 	Vector3 cameraRotate(0.26f, 0.0f, 0.0f);
@@ -143,8 +153,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Vector3 translate{ 0.0f,0.0f,0.0f };
 
 	// キー入力結果を受け取る箱
-	char keys[256] = {0};
-	char preKeys[256] = {0};
+	char keys[256] = { 0 };
+	char preKeys[256] = { 0 };
 	// ウィンドウの×ボタンが押されるまでループ
 	while (Novice::ProcessMessage() == 0) {
 		// フレームの開始
@@ -155,9 +165,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Novice::GetHitKeyStateAll(keys);
 		/// ↓更新処理ここから
 		ImGui::Begin("window");
-		ImGui::SliderFloat3("CameraTranslate", &cameraTranslate.x,-7.0f,7.0f);
-		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
+		if (ImGui::Button("START")) {
+			IsStart = true;
+		}
+		ImGui::SliderFloat3("CameraTranslate", &cameraTranslate.x, -7.0f, 7.0f);
+		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x, -1.0f, 1.0f);
 		ImGui::End();
+
+		if (IsStart) {
+			angle += angularVelocity * deltaTime;
+		}
+
+		p.x = c.x + std::cos(angle) * r;
+		p.y = c.y + std::sin(angle) * r;
+		p.z = c.z;
+
+		sphere.center = p;
 
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
@@ -165,11 +188,11 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 projectionMatrix = MakePerspectiveFovMatrix(0.45f, float(windowWidth) / float(windowHeight), 0.1f, 100.0f);
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight), 0.0f, 1.0f);
-	
+
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
-
+		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, WHITE);
 		/// ↑描画処理ここまで
 		// フレームの終了
 		Novice::EndFrame();
