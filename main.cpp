@@ -144,6 +144,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	bool IsStart = false;
 
+	Vector3 p = { 0.0f,0.0f,0.0f };
+
+	Sphere sphere = { p,0.1f };
+
 	Pendulum pendulum;
 	pendulum.anchor = { 0.0f,1.0f,0.0f };
 	pendulum.length = 0.8f;
@@ -177,12 +181,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x, -1.0f, 1.0f);
 		ImGui::End();
 
-		pendulum.angularAcceleration =
-			-(9.8f / pendulum.length) * std::sin(pendulum.angle);
-		pendulum.angularVelocity += pendulum.angularAcceleration * deltaTime;
-		pendulum.angle += pendulum.angularVelocity * deltaTime;
+		if (IsStart) {
+			pendulum.angularAcceleration =
+				-(9.8f / pendulum.length) * std::sin(pendulum.angle);
+			pendulum.angularVelocity += pendulum.angularAcceleration * deltaTime;
+			pendulum.angle += pendulum.angularVelocity * deltaTime;
 
-		
+			//pは振り子の先端の位置。取り付けたいものを取り付ければ良い
+			p.x = pendulum.anchor.x + std::sin(pendulum.angle) * pendulum.length;
+			p.y = pendulum.anchor.y - std::cos(pendulum.angle) * pendulum.length;
+			p.z = pendulum.anchor.z;
+		}
+
 
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
