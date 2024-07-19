@@ -12,6 +12,14 @@ struct Sphere {
 	float radius;
 };
 
+struct Pendulum {
+	Vector3 anchor;
+	float length;//紐の長さ
+	float angle;
+	float angularVelocity;//角速度
+	float angularAcceleration;//角加速度
+};
+
 //線形補間
 Vector3 Lerp(const Vector3& v1, const Vector3& v2, float t) {
 	return v1 * (1 - t) + v2 * t;
@@ -133,18 +141,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	float windowHeight = 720.0f;
 
 	float deltaTime = 1.0f / 60.0f;
-	float angularVelocity = 3.14f;
-	float angle = 0.0f;
-	float r = 0.8f;
 
 	bool IsStart = false;
 
-	Vector3 p = { 0.0f,0.0f,0.0f };
-	Vector3 c = { 0.0f,0.0f,0.0f };
-
-	Sphere sphere{
-		p,0.05f
-	};
+	Pendulum pendulum;
+	pendulum.anchor = { 0.0f,1.0f,0.0f };
+	pendulum.length = 0.8f;
+	pendulum.angle = 0.7f;
+	pendulum.angularVelocity = 0.0f;
+	pendulum.angularAcceleration = 0.0f;
 
 	Vector3 cameraTranslate(0.0f, 1.9f, -6.49f);
 	Vector3 cameraRotate(0.26f, 0.0f, 0.0f);
@@ -172,15 +177,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x, -1.0f, 1.0f);
 		ImGui::End();
 
-		if (IsStart) {
-			angle += angularVelocity * deltaTime;
-		}
+		pendulum.angularAcceleration =
+			-(9.8f / pendulum.length) * std::sin(pendulum.angle);
+		pendulum.angularVelocity += pendulum.angularAcceleration * deltaTime;
+		pendulum.angle += pendulum.angularVelocity * deltaTime;
 
-		p.x = c.x + std::cos(angle) * r;
-		p.y = c.y + std::sin(angle) * r;
-		p.z = c.z;
-
-		sphere.center = p;
+		
 
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
