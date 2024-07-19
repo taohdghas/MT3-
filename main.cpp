@@ -12,13 +12,15 @@ struct Sphere {
 	Vector3 center;
 	float radius;
 };
-struct Spring {
-	//アンカー。固定された端の位置
+
+struct ConicalPendulum {
 	Vector3 anchor;
-	float naturalLength;//自然長
-	float stiffness;//耐性。バネ定数k
-	float dampingCoefficient;//減衰係数
+	float length;
+	float halfApexAngle;//円錐の直角の半分
+	float angle;//現在の角度
+	float angularVelocity;//角速度
 };
+
 struct Ball {
 	Vector3 position;//ボールの位置
 	Vector3 velocity;//ボールの速度
@@ -27,6 +29,7 @@ struct Ball {
 	float radius;//ボールの半径
 	unsigned int color;//ボールの色
 };
+
 //線形補間
 Vector3 Lerp(const Vector3& v1, const Vector3& v2, float t) {
 	return v1* (1 - t) + v2 * t;
@@ -149,21 +152,20 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	bool IsStart = false;
 
-	Spring spring{};
-	spring.anchor = { 0.0f,0.0f,0.0f };
-	spring.naturalLength = 1.0f;
-	spring.stiffness = 100.0f;
-	spring.dampingCoefficient = 2.0f;
+	ConicalPendulum conicalPendulum;
+	conicalPendulum.anchor = { 0.0f,1.0f,0.0f };
+	conicalPendulum.length = 0.8f;
+	conicalPendulum.halfApexAngle = 0.7f;
+	conicalPendulum.angle = 0.0f;
+	conicalPendulum.angularVelocity = 0.0f;
 
-	Ball ball{};
-	ball.position = { 1.2f,0.0f,0.0f };
-	ball.mass = 2.0f;
+	Ball ball;
+	ball.position = { 0.0f,0.0f,0.0f };
 	ball.radius = 0.05f;
-	ball.color = BLUE;
 
 	Sphere sphere{
-		ball.position,
-		ball.radius,
+	ball.position,
+	ball.radius,
 	};
 
 	Vector3 cameraTranslate(0.0f, 1.9f, -6.49f);
@@ -185,33 +187,27 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Novice::GetHitKeyStateAll(keys);
 		/// ↓更新処理ここから
 		ImGui::Begin("window");
+		if (ImGui::Button("START")) {
+			IsStart = true;
+		}
 		ImGui::SliderFloat3("CameraTranslate", &cameraTranslate.x,-7.0f,7.0f);
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
 		ImGui::End();
 
-		if (keys[DIK_SPACE]) {
-			IsStart = true;
-		}
-	
 		if (IsStart) {
-			Vector3 diff = ball.position - spring.anchor;
-			float length = Length(diff);
-			if (length != -0.0f) {
-				Vector3 direction = Normalize(diff);
-				Vector3 restPosition = spring.anchor + direction * spring.naturalLength;
-				Vector3 displacement = length * (ball.position - restPosition);
-				Vector3 restoringForce = -spring.stiffness * displacement;
-				//減衰抵抗
-				Vector3 dampingForce = -spring.dampingCoefficient * ball.velocity;
-				Vector3 force = restoringForce + dampingForce;
-				ball.acceleration = force / ball.mass;
-			}
-			//加速度も速度もどちらも秒を基準とした値
-			//deltaTime適用
-			ball.velocity += ball.acceleration * deltaTime;
-			ball.position += ball.velocity * deltaTime;
+			conicalPendulum.angularVelocity = std::sqrt(9.8f / 
+				(conicalPendulum.length * std::cos(conicalPendulum.halfApexAngle)));
+			conicalPendulum.angle += conicalPendulum.angularVelocity * deltaTime;
+
+			float radius = std::sin(conicalPendulum.halfApexAngle) * conicalPendulum.length;
+			float height = std::cos(conicalPendulum.halfApexAngle) * conicalPendulum.length;
+			ball.position.x = conicalPendulum.anchor.x + std::cos(conicalPendulum.angle) * radius;
+			ball.position.y = conicalPendulum.anchor.y - height;
+			ball.position.z = conicalPendulum.anchor.z - std::sin(conicalPendulum.angle) * radius;
+			
 		}
 		sphere.center = ball.position;
+
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -219,12 +215,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight), 0.0f, 1.0f);
 	
-		Vector3 ScreenAnchor = Transform(Transform(spring.anchor, worldViewProjectionMatrix), viewportMatrix);
+		Vector3 ScreenAnchor = Transform(Transform(conicalPendulum.anchor, worldViewProjectionMatrix), viewportMatrix);
 		Vector3 ScreenCenter = Transform(Transform(sphere.center, worldViewProjectionMatrix), viewportMatrix);
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
-		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, ball.color);
+		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, WHITE);
 		Novice::DrawLine(int(ScreenAnchor.x), int(ScreenAnchor.y), int(ScreenCenter.x), int(ScreenCenter.y), 0xFFFFFFFF);
 		/// ↑描画処理ここまで
 		// フレームの終了
