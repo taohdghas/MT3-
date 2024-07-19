@@ -144,9 +144,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	bool IsStart = false;
 
-	Vector3 p = { 0.0f,0.0f,0.0f };
+	Vector3 p = {};
 
-	Sphere sphere = { p,0.1f };
+	Sphere sphere = { p,0.05f };
 
 	Pendulum pendulum;
 	pendulum.anchor = { 0.0f,1.0f,0.0f };
@@ -202,10 +202,14 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight), 0.0f, 1.0f);
 
+		Vector3 ScreenAnchor = Transform(Transform(pendulum.anchor, worldViewProjectionMatrix), viewportMatrix);
+		Vector3 ScreenCenter = Transform(Transform(sphere.center, worldViewProjectionMatrix), viewportMatrix);
+
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, WHITE);
+		Novice::DrawLine(int(ScreenAnchor.x), int(ScreenAnchor.y), int(ScreenCenter.x), int(ScreenCenter.y), WHITE);
 		/// ↑描画処理ここまで
 		// フレームの終了
 		Novice::EndFrame();
