@@ -13,14 +13,6 @@ struct Sphere {
 	float radius;
 };
 
-struct ConicalPendulum {
-	Vector3 anchor;
-	float length;
-	float halfApexAngle;//円錐の直角の半分
-	float angle;//現在の角度
-	float angularVelocity;//角速度
-};
-
 struct Ball {
 	Vector3 position;//ボールの位置
 	Vector3 velocity;//ボールの速度
@@ -29,38 +21,6 @@ struct Ball {
 	float radius;//ボールの半径
 	unsigned int color;//ボールの色
 };
-
-//線形補間
-Vector3 Lerp(const Vector3& v1, const Vector3& v2, float t) {
-	return v1* (1 - t) + v2 * t;
-}
-Vector3 Bezier(const Vector3& p0, const Vector3& p1, const Vector3& p2, float t) {
-	//制御点p0,p1を線形補間
-	Vector3 p0p1 = Lerp(p0, p1, t);
-	//制御点p1,p2を線形補間
-	Vector3 p1p2 = Lerp(p1, p2, t);
-	//制御点p0,p1,p1p2をさらに線形補間
-	Vector3 p = Lerp(p0p1, p1p2, t);
-	return p;
-}
-void DrawBezier(const Vector3& controlPoint0, const Vector3& controlPoint1, const Vector3& controlPoint2,
-	const Matrix4x4&viewProjectionMatrix,const Matrix4x4&viewportMatrix,uint32_t color) {
-	for (int index = 0; index < 32; index++) {
-		float t0 = index / 32.0f;
-		float t1 = (index + 1) / 32.0f;
-
-		Vector3 bezier0 = Bezier(controlPoint0, controlPoint1, controlPoint2, t0);
-		Vector3 bezier1 = Bezier(controlPoint0, controlPoint1, controlPoint2, t1);
-
-		Vector3 Screenbezier0 = Transform(Transform(bezier0, viewProjectionMatrix), viewportMatrix);
-		Vector3 Screenbezier1 = Transform(Transform(bezier1, viewProjectionMatrix), viewportMatrix);
-		Vector3 ScreenPoint0 = Transform(Transform(controlPoint0, viewProjectionMatrix), viewportMatrix);
-		Vector3 ScreenPoint1 = Transform(Transform(controlPoint1, viewProjectionMatrix), viewportMatrix);
-		Vector3 ScreenPoint2 = Transform(Transform(controlPoint2, viewProjectionMatrix), viewportMatrix);
-
-		Novice::DrawLine(int(Screenbezier0.x), int(Screenbezier0.y), int(Screenbezier1.x), int(Screenbezier1.y), color);
-	}
-}
 
 void DrawSphere(const Sphere& sphere, const Matrix4x4& ViewProjectionMatrix, const Matrix4x4& viewportMatrix, uint32_t color) {
 	const float pi = 3.14159f;
@@ -152,13 +112,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	bool IsStart = false;
 
-	ConicalPendulum conicalPendulum;
-	conicalPendulum.anchor = { 0.0f,1.0f,0.0f };
-	conicalPendulum.length = 0.8f;
-	conicalPendulum.halfApexAngle = 0.7f;
-	conicalPendulum.angle = 0.0f;
-	conicalPendulum.angularVelocity = 0.0f;
-
 	Ball ball;
 	ball.position = { 0.0f,0.0f,0.0f };
 	ball.radius = 0.05f;
@@ -194,20 +147,6 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
 		ImGui::End();
 
-		if (IsStart) {
-			conicalPendulum.angularVelocity = std::sqrt(9.8f / 
-				(conicalPendulum.length * std::cos(conicalPendulum.halfApexAngle)));
-			conicalPendulum.angle += conicalPendulum.angularVelocity * deltaTime;
-
-			float radius = std::sin(conicalPendulum.halfApexAngle) * conicalPendulum.length;
-			float height = std::cos(conicalPendulum.halfApexAngle) * conicalPendulum.length;
-			ball.position.x = conicalPendulum.anchor.x + std::cos(conicalPendulum.angle) * radius;
-			ball.position.y = conicalPendulum.anchor.y - height;
-			ball.position.z = conicalPendulum.anchor.z - std::sin(conicalPendulum.angle) * radius;
-			
-		}
-		sphere.center = ball.position;
-
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -215,13 +154,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 worldViewProjectionMatrix = Multiply(worldMatrix, Multiply(viewMatrix, projectionMatrix));
 		Matrix4x4 viewportMatrix = MakeViewportMatrix(0, 0, float(windowWidth), float(windowHeight), 0.0f, 1.0f);
 	
-		Vector3 ScreenAnchor = Transform(Transform(conicalPendulum.anchor, worldViewProjectionMatrix), viewportMatrix);
-		Vector3 ScreenCenter = Transform(Transform(sphere.center, worldViewProjectionMatrix), viewportMatrix);
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
-		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, WHITE);
-		Novice::DrawLine(int(ScreenAnchor.x), int(ScreenAnchor.y), int(ScreenCenter.x), int(ScreenCenter.y), 0xFFFFFFFF);
+
 		/// ↑描画処理ここまで
 		// フレームの終了
 		Novice::EndFrame();

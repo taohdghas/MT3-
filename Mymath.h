@@ -336,4 +336,9 @@ Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 	return result;
 }
 
+//”½ËƒxƒNƒgƒ‹‚ğ‹‚ß‚éŠÖ”
+Vector3 Reflect(const Vector3& input, const Vector3& normal) {
+	float dotProduct = Dot(input, normal);
+	return input - normal * (2.0f * dotProduct);
+}
 
