@@ -336,6 +336,13 @@ Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 	return result;
 }
 
+Vector3 Perpendicular(const Vector3& vector) {
+	if (vector.x != 0.0f || vector.y != 0.0f) {
+		return { -vector.y,vector.x,0.0f };
+	}
+	return { 0.0f,-vector.z,vector.y };
+}
+
 //”½ËƒxƒNƒgƒ‹‚ğ‹‚ß‚éŠÖ”
 Vector3 Reflect(const Vector3& input, const Vector3& normal) {
 	float dotProduct = Dot(input, normal);
