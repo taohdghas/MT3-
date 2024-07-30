@@ -343,7 +343,6 @@ Vector3 Perpendicular(const Vector3& vector) {
 	return { 0.0f,-vector.z,vector.y };
 }
 
-//”½ËƒxƒNƒgƒ‹‚ğ‹‚ß‚éŠÖ”
 Vector3 Reflect(const Vector3& input, const Vector3& normal) {
 	float dotProduct = Dot(input, normal);
 	return input - normal * (2.0f * dotProduct);

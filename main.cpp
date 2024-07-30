@@ -126,6 +126,12 @@ void DrawPlane(const Plane& plane, const Matrix4x4& viewProjectionMatrix, const 
 	Novice::DrawLine(int(points[2].x), int(points[2].y), int(points[0].x), int(points[0].y), color);
 	Novice::DrawLine(int(points[3].x), int(points[3].y), int(points[0].x), int(points[0].y), color);
 }
+
+bool IsCollision(const Sphere& sphere, const Plane& plane) {
+	float distance = Dot(plane.normal, sphere.center) - plane.distance;
+	return distance <= sphere.radius;
+}
+
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	// ライブラリの初期化
@@ -137,9 +143,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	bool IsStart = false;
 
+	Plane plane;
+	plane.normal = Normalize({ -0.2f,0.9f,-0.3f });
+	plane.distance = 0.0f;
+
 	Ball ball;
-	ball.position = { 0.0f,0.0f,0.0f };
+	ball.position = { 0.8f,1.2f,0.3f };
+	ball.acceleration = { 0.0f,-9.8f,0.0f };
+	ball.mass = 2.0f;
 	ball.radius = 0.05f;
+	ball.color = WHITE;
 
 	Sphere sphere{
 	ball.position,
@@ -172,6 +185,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
 		ImGui::End();
 
+		ball.velocity += ball.acceleration * deltaTime;
+		ball.position += ball.velocity * deltaTime;
+		if (IsCollision(Sphere{ ball.position,ball.radius }, plane)) {
+			Vector3 reflected = Reflect(ball.velocity, plane.normal);
+			Vector3 projectToNormal = Project(reflected, plane.normal);
+			Vector3 movingDirection = reflected - projectToNormal;
+			ball.velocity = projectToNormal * e + movingDirection;
+		}
+
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
 		Matrix4x4 viewMatrix = Inverse(cameraMatrix);
@@ -182,6 +204,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
+		DrawPlane(plane, worldViewProjectionMatrix, viewportMatrix, WHITE);
+		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, WHITE);
 
 		/// ↑描画処理ここまで
 		// フレームの終了
