@@ -141,13 +141,15 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	float deltaTime = 1.0f / 60.0f;
 
+	float e = 0.5f;
+
 	bool IsStart = false;
 
 	Plane plane;
 	plane.normal = Normalize({ -0.2f,0.9f,-0.3f });
 	plane.distance = 0.0f;
 
-	Ball ball;
+	Ball ball{};
 	ball.position = { 0.8f,1.2f,0.3f };
 	ball.acceleration = { 0.0f,-9.8f,0.0f };
 	ball.mass = 2.0f;
@@ -185,14 +187,18 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::SliderFloat3("CameraRotate", &cameraRotate.x,-1.0f,1.0f);
 		ImGui::End();
 
-		ball.velocity += ball.acceleration * deltaTime;
-		ball.position += ball.velocity * deltaTime;
-		if (IsCollision(Sphere{ ball.position,ball.radius }, plane)) {
-			Vector3 reflected = Reflect(ball.velocity, plane.normal);
-			Vector3 projectToNormal = Project(reflected, plane.normal);
-			Vector3 movingDirection = reflected - projectToNormal;
-			ball.velocity = projectToNormal * e + movingDirection;
+		if (IsStart) {
+			ball.velocity = Add(ball.velocity, Multiply(deltaTime, ball.acceleration));
+			ball.position = Add(ball.position, Multiply(deltaTime, ball.velocity));
 		}
+			if (IsCollision(sphere, plane)) {
+				Vector3 reflected = Reflect(ball.velocity, plane.normal);
+				Vector3 projectToNormal = Project(reflected, plane.normal);
+				Vector3 movingDirection = reflected - projectToNormal;
+				ball.velocity = projectToNormal * e + movingDirection;
+			}
+		
+			sphere.center = ball.position;
 
 		Matrix4x4 worldMatrix = MakeAffineMatrix({ 1.0f,1.0,1.0f }, rotate, translate);
 		Matrix4x4 cameraMatrix = MakeAffineMatrix(cameraScale, cameraRotate, cameraTranslate);
@@ -205,7 +211,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		/// ↓描画処理ここから
 		DrawGrid(worldViewProjectionMatrix, viewportMatrix);
 		DrawPlane(plane, worldViewProjectionMatrix, viewportMatrix, WHITE);
-		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix, WHITE);
+		DrawSphere(sphere, worldViewProjectionMatrix, viewportMatrix,ball.color);
 
 		/// ↑描画処理ここまで
 		// フレームの終了
