@@ -325,39 +325,38 @@ Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Ve
 
 	return affineMatrix;
 }
-//”CˆÓ²‰ñ“]s—ñ
+//ä»»æ„è»¸å›è»¢è¡Œåˆ—
 Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
-	// —^‚¦‚ç‚ê‚½²‚ğ³‹K‰»
+	// å›è»¢è»¸ã‚’æ­£è¦åŒ–
 	Vector3 normalizedAxis = Normalize(axis);
 
 	float x = normalizedAxis.x;
 	float y = normalizedAxis.y;
 	float z = normalizedAxis.z;
 
-	// ƒTƒCƒ“‚ÆƒRƒTƒCƒ“‚ğŒvZ
-	float cosTheta = cos(angle);
-	float sinTheta = sin(angle);
+	float cosTheta = std::cos(angle);
+	float sinTheta = std::sin(angle);
 	float oneMinusCos = 1.0f - cosTheta;
 
 	Matrix4x4 rotationMatrix;
 
-	// ƒƒhƒŠƒQƒX‚Ì‰ñ“]Œö®‚ğg‚Á‚Ä‰ñ“]s—ñ‚ğì¬
+	// ãƒ­ãƒ‰ãƒªã‚²ã‚¹ã®å›è»¢å…¬å¼ã‚’ä½¿ã£ã¦å›è»¢è¡Œåˆ—ã‚’ä½œæˆ
 	rotationMatrix.m[0][0] = cosTheta + x * x * oneMinusCos;
-	rotationMatrix.m[0][1] = x * y * oneMinusCos - z * sinTheta;
-	rotationMatrix.m[0][2] = x * z * oneMinusCos + y * sinTheta;
+	rotationMatrix.m[0][1] = x * y * oneMinusCos + z * sinTheta;
+	rotationMatrix.m[0][2] = x * z * oneMinusCos - y * sinTheta;
 	rotationMatrix.m[0][3] = 0.0f;
 
-	rotationMatrix.m[1][0] = y * x * oneMinusCos + z * sinTheta;
+	rotationMatrix.m[1][0] = y * x * oneMinusCos - z * sinTheta;
 	rotationMatrix.m[1][1] = cosTheta + y * y * oneMinusCos;
-	rotationMatrix.m[1][2] = y * z * oneMinusCos - x * sinTheta;
+	rotationMatrix.m[1][2] = y * z * oneMinusCos + x * sinTheta;
 	rotationMatrix.m[1][3] = 0.0f;
 
-	rotationMatrix.m[2][0] = z * x * oneMinusCos - y * sinTheta;
-	rotationMatrix.m[2][1] = z * y * oneMinusCos + x * sinTheta;
+	rotationMatrix.m[2][0] = z * x * oneMinusCos + y * sinTheta;
+	rotationMatrix.m[2][1] = z * y * oneMinusCos - x * sinTheta;
 	rotationMatrix.m[2][2] = cosTheta + z * z * oneMinusCos;
 	rotationMatrix.m[2][3] = 0.0f;
 
-	// “¯ŸÀ•W—p‚Ì¬•ª‚ğİ’è
+	// åŒæ¬¡åº§æ¨™ç”¨ã®æˆåˆ†ã‚’è¨­å®š
 	rotationMatrix.m[3][0] = 0.0f;
 	rotationMatrix.m[3][1] = 0.0f;
 	rotationMatrix.m[3][2] = 0.0f;

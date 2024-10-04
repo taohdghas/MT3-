@@ -8,6 +8,18 @@
 #endif
 const char kWindowTitle[] = "LE2C_13_サノ_ハヤテ_タイトル";
 
+static const int kRowHeight = 20;
+static const int kColumnWidth = 60;
+void MatrixScreenPrintf(int x, int y, const char* Name, const Matrix4x4& matrix) {
+	Novice::ScreenPrintf(x, y, "%s\n", Name);
+	for (int row = 0; row < 4; ++row) {
+		for (int column = 0; column < 4; ++column) {
+			Novice::ScreenPrintf(
+				x + column * kColumnWidth, y + (row + 1) * kRowHeight, "%.3f", matrix.m[row][column]
+			);
+		}
+	}
+}
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
@@ -30,7 +42,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		Matrix4x4 rotateMatrix = MakeRotateAxisAngle(axis, angle);
 		/// ↑更新処理ここまで
 		/// ↓描画処理ここから
-		
+		MatrixScreenPrintf(0, 0,  "rotateMatrix",rotateMatrix);
 		/// ↑描画処理ここまで
 		// フレームの終了
 		Novice::EndFrame();
