@@ -325,6 +325,46 @@ Matrix4x4 MakeAffineMatrix(const Vector3& scale, const Vector3& rotate, const Ve
 
 	return affineMatrix;
 }
+//任意軸回転行列
+Matrix4x4 MakeRotateAxisAngle(const Vector3& axis, float angle) {
+	// 与えられた軸を正規化
+	Vector3 normalizedAxis = Normalize(axis);
+
+	float x = normalizedAxis.x;
+	float y = normalizedAxis.y;
+	float z = normalizedAxis.z;
+
+	// サインとコサインを計算
+	float cosTheta = cos(angle);
+	float sinTheta = sin(angle);
+	float oneMinusCos = 1.0f - cosTheta;
+
+	Matrix4x4 rotationMatrix;
+
+	// ロドリゲスの回転公式を使って回転行列を作成
+	rotationMatrix.m[0][0] = cosTheta + x * x * oneMinusCos;
+	rotationMatrix.m[0][1] = x * y * oneMinusCos - z * sinTheta;
+	rotationMatrix.m[0][2] = x * z * oneMinusCos + y * sinTheta;
+	rotationMatrix.m[0][3] = 0.0f;
+
+	rotationMatrix.m[1][0] = y * x * oneMinusCos + z * sinTheta;
+	rotationMatrix.m[1][1] = cosTheta + y * y * oneMinusCos;
+	rotationMatrix.m[1][2] = y * z * oneMinusCos - x * sinTheta;
+	rotationMatrix.m[1][3] = 0.0f;
+
+	rotationMatrix.m[2][0] = z * x * oneMinusCos - y * sinTheta;
+	rotationMatrix.m[2][1] = z * y * oneMinusCos + x * sinTheta;
+	rotationMatrix.m[2][2] = cosTheta + z * z * oneMinusCos;
+	rotationMatrix.m[2][3] = 0.0f;
+
+	// 同次座標用の成分を設定
+	rotationMatrix.m[3][0] = 0.0f;
+	rotationMatrix.m[3][1] = 0.0f;
+	rotationMatrix.m[3][2] = 0.0f;
+	rotationMatrix.m[3][3] = 1.0f;
+
+	return rotationMatrix;
+}
 
 Vector3 Transform(const Vector3& vector, const Matrix4x4& matrix) {
 	Vector3 result;
